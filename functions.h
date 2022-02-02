@@ -4,4 +4,5 @@
 #include <stdlib.h>
 #include <dirent.h>
 
-void readProc();
+void checkOptions(char *p, int s, int U, int S, int v, int c);
+void listProcess(char *pid, int s, int U, int S, int v, int c);

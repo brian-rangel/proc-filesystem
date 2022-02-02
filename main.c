@@ -1,33 +1,40 @@
 #include "functions.h"
 
 int main(int argc, char *argv[]) {
-    int opt;
+    char *pid = "-1"; // Initialized to -1 unless the -p option is provided
+    int options, s = 0, U = 1, S = 0, v = 0, c = 1;
 
-    // Parse the command line
-    while ((opt = getopt(argc, argv, "p::sUSvc")) != -1) {
-        switch (opt) {
+    // Check which options are provided by parsing the command line
+    while ((options = getopt(argc, argv, "p:sUSvc")) != -1) {
+        switch (options) {
+            // -p <pid>: Process information for the specified pid
             case 'p':
-                printf("Argument -p was provided\n");
+                pid = optarg;
                 break;
+            // -s: Single-character state information about a process
             case 's':
-                printf("Argument -s was provided\n");
+                s = 1;
                 break;
+            // -U: User time consumed by a process
             case 'U':
-                printf("Argument -U was provided\n");
+                U = 0;
                 break;
+            // -S: System time consumed by a process
             case 'S':
-                printf("Argument -S was provided\n");
+                S = 1;
                 break;
+            // -v: Virtual memory used by a process
             case 'v':
-                printf("Argument -v was provided\n");
+                v = 1;
                 break;
+            // -c: The command-line that started a process
             case 'c':
-                printf("Argument -c was provided\n");
+                c = 0;
                 break;
         }
     }
 
     // Read from the proc file system
-    readProc();
+    checkOptions(pid, s, U, S, v, c);
     return 0;
 }
