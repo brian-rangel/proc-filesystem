@@ -1,27 +1,38 @@
 #include "functions.h"
 
-void checkOptions(char *pid, int s, int U, int S, int v, int c) {
-    // Check if the -p option was provided
+// Opens the /proc directory and checks the PID for either all
+// processes that belong to the user or for a specified process.
+// Depends on whether or not the -p <PID> option was provided
+void checkPID(char *pid, int s, int U, int S, int v, int c) {
     if (strcmp(pid, "-1") == 0) {
         struct dirent *dirent; // Pointer to struct dirent
         DIR *dir = opendir("/proc"); // Directory stream
         
         // Check if program failed to open the directory
-        if ((dir = opendir("/proc")) == NULL){
+        if ((dir = opendir("/proc")) == NULL) {
             printf("TUps: Failed to open '/proc'");
             return;
         } else {
+            // Since no PID was specified, check all directories in the proc filesystem
             while ((dirent = readdir(dir)) != NULL) {
                 // Check if current directory entry is a process
-                if (atoi(dirent->d_name) != 0) {
+                char *endptr;
+                strtol(dirent->d_name, &endptr, 10);
+                if (*endptr == '\0') {
                     // Create a path leading to the process uid
                     char path[BUFSIZ];
                     strcpy(path, "/proc/");
                     strcat(path, dirent->d_name);
                     strcat(path, "/loginuid");
 
-                    // Only list the process if it belongs to the current user
+                    // Open the file
                     FILE *file = fopen(path, "r");
+                    if (!file) {
+                        printf("TUps: Could not read process login UID in \"%s\"\n", path);
+                        return;
+                    }
+
+                    // Only list the process if it belongs to the current user
                     char uid[BUFSIZ];
                     fgets(uid, BUFSIZ, file);
                     if (getuid() != atoi(uid)) {
@@ -34,12 +45,26 @@ void checkOptions(char *pid, int s, int U, int S, int v, int c) {
             }
         }
         closedir(dir);
-    }
-    else {
+    } else {
+        // Check if the specified process exists
+        char path[BUFSIZ];
+        strcpy(path, "/proc/");
+        strcat(path, pid);
+        DIR *dir = opendir(path);
+        if (!dir) {
+            printf("TUps: The process with PID '%s' does not exist\n", pid);
+            return;
+        }
+        closedir(dir);
+
+        // Only list the specified process
         listProcess(pid, s, U, S, v, c);
     }
 }
 
+// Display the information of a specified process such as PID, state, user time,
+// system time, virtual memory size, and process command-line. The information 
+// displayed will vary based on the arguments parsed from the command-line
 void listProcess(char *pid, int s, int U, int S, int v, int c) {
     char *token, *pointer, path[BUFSIZ];
     FILE *file;
@@ -49,7 +74,13 @@ void listProcess(char *pid, int s, int U, int S, int v, int c) {
     strcpy(path, "/proc/");
     strcat(path, pid);
     strcat(path, "/stat");
+
+    // Open the file
     file = fopen(path, "r");
+    if (!file) {
+        printf("TUps: Could not read process status in \"%s\"\n", path);
+        return;
+    }
 
     // Read the contents inside the process stat
     char stat[BUFSIZ];
@@ -89,7 +120,13 @@ void listProcess(char *pid, int s, int U, int S, int v, int c) {
         strcpy(path, "/proc/");
         strcat(path, pid);
         strcat(path, "/statm");
+
+        // Open the file
         file = fopen(path, "r");
+        if (!file) {
+            printf("\nTUps: Could not read process memory status in \"%s\"\n", path);
+            return;
+        }
 
         // Read the process memory status
         char statm[BUFSIZ];
@@ -110,23 +147,29 @@ void listProcess(char *pid, int s, int U, int S, int v, int c) {
 
     // Check if the -c option was provided
     if (c == 1) {
-        // Create a path leading to the process command line
+        // Create a path leading to the process command-line
         strcpy(path, "/proc/");
         strcat(path, pid);
         strcat(path, "/cmdline");
+
+        // Open the file
         file = fopen(path, "r");
+        if (!file) {
+            printf("\nTUps: Could not read process command-line in \"%s\"\n", path);
+            return;
+        }
 
         // Print the entire process command line character by character
-        char currentChar, nextChar = fgetc(file);
+        char currentchar, nextchar = fgetc(file);
         printf("[");
-        while (nextChar != EOF) {
-            currentChar = nextChar;
-            nextChar = fgetc(file);
+        while (nextchar != EOF) {
+            currentchar = nextchar;
+            nextchar = fgetc(file);
             // Check if the current character is the '\0' delimeter
-            if (currentChar != '\0') {
-                printf("%c", currentChar);
+            if (currentchar != '\0') {
+                printf("%c", currentchar);
             } else {
-                if (nextChar != EOF) {
+                if (nextchar != EOF) {
                     printf(" ");
                 }
             }
